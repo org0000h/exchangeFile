@@ -80,7 +80,7 @@ def drawFunc():
     glClear(GL_COLOR_BUFFER_BIT)
     # glRotatef(1, 0, 1, 0)
     glutWireTeapot(0.5)
-    glScaled(2, 1, 1)
+    # glScaled(2, 1, 1)
     glScaled(1, 2, 2)
     glFlush()
 
