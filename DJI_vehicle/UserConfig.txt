@@ -1,0 +1,4 @@
+app_id : 1234
+app_key : 1234
+device : /dev/pts/4
+baudrate : 115200
