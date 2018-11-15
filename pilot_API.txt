@@ -1,0 +1,19 @@
+pilot API
+
+pilot 监听本地8000网络端口的消息命令并调用DJI SDK执行相应动作。
+消息命令如下,x为可变参数：
+
+动作|           |字符串命令
+-----------------------------
+起飞    |           |"takeoff"
+降落    |           |"landing"
+上升x单位|           | "up, x"
+下降x单位|           | "down, x"
+前进x单位|           | "forward, x"
+后退x单位|           | "goback, x"
+左飞x单位|           | "left, x"
+右飞x单位|           | "right, x"
+左旋x单位|           | "turnleft, x"
+右旋x单位|           | "turnright, x"
+
+
