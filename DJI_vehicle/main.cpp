@@ -41,7 +41,69 @@
 
 using namespace DJI::OSDK;
 using namespace DJI::OSDK::Telemetry;
-int receiveCmd(void)
+void TakeOff(Vehicle *vehicle){
+	monitoredTakeoff(vehicle);
+	moveByPositionOffset(vehicle, 0, 0, 6, 0);
+}
+void Landing(Vehicle *vehicle){
+	monitoredTakeoff(vehicle);
+	moveByPositionOffset(vehicle, 0, 0, 6, 0);
+}
+void MoveForward(Vehicle *vehicle,float x){
+	moveByPositionOffset(vehicle, x, 0, 0, 0);
+}
+void MoveBack(Vehicle *vehicle,float x){
+	moveByPositionOffset(vehicle, -x, 0, 0, 0);
+}
+void MoveUp(Vehicle *vehicle,float z){
+	moveByPositionOffset(vehicle, 0, 0, -z, 0);
+}
+void MoveDown(Vehicle *vehicle,float z){
+	moveByPositionOffset(vehicle, 0, 0, z, 0);
+}
+void MoveLeft(Vehicle *vehicle,float y){
+	moveByPositionOffset(vehicle, 0, -y, 0, 0);
+}
+void MoveRight(Vehicle *vehicle,float y){
+	moveByPositionOffset(vehicle, 0, y, 0, 0);
+}
+void TurnLeft(Vehicle *vehicle,float yew){
+	moveByPositionOffset(vehicle, 0, 0, 0, -yew);
+}
+void TurnRight(Vehicle *vehicle,float yew){
+	moveByPositionOffset(vehicle, 0, 0, 0, yew);
+}
+
+typedef void (*ACTION)(Vehicle *,float);
+
+typedef struct{
+	const char *cmd;
+	ACTION act;
+}CMD_MATCH;
+
+CMD_MATCH cmd[] = {
+		{"TakeOff", TakeOff},
+		{"Landing", Landing},
+		{"MoveForward", MoveForward},
+		{"MoveBack", MoveBack},
+		{"MoveLeft", MoveLeft},
+		{"MoveRight", MoveRight},
+		{"MoveUp", MoveUp},
+		{"MoveDown", MoveDown},
+		{"TurnLeft", TurnLeft},
+		{"TurnRight", TurnRight}
+};
+
+void DronAction(Vehicle *vehicle, const char* cmds, float x){
+	int i = 0;
+	for(i = 0; i<10 ; i++){
+		if(strstr(cmd[i].cmd, cmds)){
+			cmd[i].act(vehicle, x);
+		}
+	}
+}
+
+int receiveCmd(Vehicle *vehicle)
 {
     int server_sockfd;
     int len;
@@ -69,21 +131,26 @@ int receiveCmd(void)
     sin_size=sizeof(struct sockaddr_in);
     printf("waiting for a packet...\n");
 
-    /*接收客户端的数据并将其发送给客户端--recvfrom是无连接的*/
-    if((len=recvfrom(server_sockfd,buf,BUFSIZ,0,(struct sockaddr *)&remote_addr,&sin_size))<0)
-    {
-        perror("recvfrom");
-        return 1;
+    while(1){
+		/*接收客户端的数据并将其发送给客户端--recvfrom是无连接的*/
+		if((len=recvfrom(server_sockfd,buf,BUFSIZ,0,(struct sockaddr *)&remote_addr,&sin_size))<0)
+		{
+			perror("recvfrom");
+			return 1;
+		}
+		printf("received packet from %s:\n",inet_ntoa(remote_addr.sin_addr));
+		buf[len]='\0';
+		printf("contents: %s\n",buf);
+		DronAction(vehicle, buf, 6);
     }
-    printf("received packet from %s:\n",inet_ntoa(remote_addr.sin_addr));
-    buf[len]='\0';
-    printf("contents: %s\n",buf);
 
     // if(buf == ""){
     //    cmd process
 	// }
     return 0;
 }
+
+
 /*! main
  *
  */
@@ -92,8 +159,6 @@ main(int argc, char** argv)
 {
   // Initialize variables
   int functionTimeout = 1;
-  receiveCmd();
-  printf("recving......\n");
   // Setup OSDK.
   LinuxSetup linuxEnvironment(argc, argv);
   Vehicle*   vehicle = linuxEnvironment.getVehicle();
@@ -106,35 +171,39 @@ main(int argc, char** argv)
   // Obtain Control Authority
   vehicle->obtainCtrlAuthority(functionTimeout);
 
-  // Display interactive prompt
-  std::cout
-    << "| Available commands:                                            |"
-    << std::endl;
-  std::cout
-    << "| [a] Monitored Takeoff + Landing                                |"
-    << std::endl;
-  std::cout
-    << "| [b] Monitored Takeoff + Position Control + Landing             |"
-    << std::endl;
-  char inputChar;
-  std::cin >> inputChar;
+  receiveCmd(vehicle);
+  printf("recving......\n");
 
-  switch (inputChar)
-  {
-    case 'a':
-      monitoredTakeoff(vehicle);
-      monitoredLanding(vehicle);
-      break;
-    case 'b':
-      monitoredTakeoff(vehicle);
-      moveByPositionOffset(vehicle, 0, 6, 6, 30);
-      moveByPositionOffset(vehicle, 6, 0, -3, -30);
-      moveByPositionOffset(vehicle, -6, -6, 0, 0);
-      monitoredLanding(vehicle);
-      break;
-    default:
-      break;
-  }
+//  // Display interactive prompt
+//  std::cout
+//    << "| Available commands:                                            |"
+//    << std::endl;
+//  std::cout
+//    << "| [a] Monitored Takeoff + Landing                                |"
+//    << std::endl;
+//  std::cout
+//    << "| [b] Monitored Takeoff + Position Control + Landing             |"
+//    << std::endl;
+//  char inputChar;
+//  std::cin >> inputChar;
+//
+//
+//  switch (inputChar)
+//  {
+//    case 'a':
+//      monitoredTakeoff(vehicle);
+//      monitoredLanding(vehicle);
+//      break;
+//    case 'b':
+//      monitoredTakeoff(vehicle);
+//      moveByPositionOffset(vehicle, 0, 6, 6, 30);
+//      moveByPositionOffset(vehicle, 6, 0, -3, -30);
+//      moveByPositionOffset(vehicle, -6, -6, 0, 0);
+//      monitoredLanding(vehicle);
+//      break;
+//    default:
+//      break;
+//  }
 
   return 0;
 }
