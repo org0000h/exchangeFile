@@ -8,7 +8,7 @@ pilot 监听本地8000网络端口的消息命令并调用DJI SDK执行相应动
 起飞    |           |"Takeoff"                
 降落    |           |"Landing"
 上升x单位|           | "MoveUp, x"
-下降x单位|           | "MoveUp, x"
+下降x单位|           | "MoveDown, x"
 前进x单位|           | "MoveForward, x"
 后退x单位|           | "MoveBack, x"
 左飞x单位|           | "MoveLeft, x"
