@@ -41,39 +41,112 @@
 
 using namespace DJI::OSDK;
 using namespace DJI::OSDK::Telemetry;
-void TakeOff(Vehicle *vehicle){
+extern "C" {
+
+#define USE_COUNT_MODE 1
+
+#define MAX 100
+#define MIN -100
+struct _position{
+	float x;
+	float y;
+	float z;
+	float yew;
+}position;
+
+#if MODE
+void TakeOff(Vehicle *vehicle,float x){
+	printf("DronAction: TakeOff\n");
 	monitoredTakeoff(vehicle);
-	moveByPositionOffset(vehicle, 0, 0, 6, 0);
 }
-void Landing(Vehicle *vehicle){
-	monitoredTakeoff(vehicle);
-	moveByPositionOffset(vehicle, 0, 0, 6, 0);
+void Landing(Vehicle *vehicle, float x){
+	printf("Landing\n");
+	memset(&position,0,sizeof(position));
+	monitoredLanding(vehicle);
 }
 void MoveForward(Vehicle *vehicle,float x){
+	position.x = ((position.x < MAX && position.x > MIN) ? (position.x + x) : position.x );
+	printf("DronAction: MoveForward %f\n",position.x);
+	moveByPositionOffset(vehicle, position.x, 0, 0, 0);
+}
+void MoveBack(Vehicle *vehicle,float x){
+	position.x = ((position.x < MAX && position.x > MIN) ? (position.x - x) : position.x );
+	printf("DronAction: MoveBack %f\n,position.x");
+	moveByPositionOffset(vehicle, position.x, 0, 0, 0);
+}
+void MoveUp(Vehicle *vehicle,float z){
+	position.z = ((position.z < MAX && position.z > MIN) ? (position.z + z) : position.z );
+	printf("DronAction: MoveUp %f\n",position.z);
+	moveByPositionOffset(vehicle, 0, 0, position.z, 0);
+}
+void MoveDown(Vehicle *vehicle,float z){
+	position.z = ((position.z < MAX && position.x > MIN) ? (position.z + z) : position.z );
+	printf("DronAction: MoveDown %f\n",position.z);
+	moveByPositionOffset(vehicle, 0, 0, position.z, 0);
+}
+void MoveLeft(Vehicle *vehicle,float y){
+	position.y = ((position.y < MAX && position.y > MIN) ? (position.y + y) : position.y );
+	printf("DronAction: MoveLeft %f\n",position.y);
+	moveByPositionOffset(vehicle, 0, position.y, 0, 0);
+}
+void MoveRight(Vehicle *vehicle,float y){
+	position.y = ((position.y < MAX && position.y > MIN) ? (position.y + y) : position.y );
+	printf("DronAction: MoveRight %f\n",position.y);
+	moveByPositionOffset(vehicle, 0, position.y, 0, 0);
+}
+void TurnLeft(Vehicle *vehicle,float yew){
+	position.yew = ((position.yew < MAX && position.yew > MIN) ? (position.yew + yew) : position.yew );
+	printf("DronAction: TurnLeft %f\n",position.yew);
+	moveByPositionOffset(vehicle, 0, 0, 0, position.yew);
+}
+void TurnRight(Vehicle *vehicle,float yew){
+	position.yew = ((position.yew < MAX && position.yew > MIN) ? (position.yew + yew) : position.yew );
+	printf("DronAction: TurnRight %f\n",position.yew);
+	moveByPositionOffset(vehicle, 0, 0, 0, position.yew);
+}
+#else
+
+void TakeOff(Vehicle *vehicle, float x){
+	printf("DronAction: TakeOff\n");
+	monitoredTakeoff(vehicle);
+}
+void Landing(Vehicle *vehicle, float x){
+	printf("Landing\n");
+	monitoredLanding(vehicle);
+}
+void MoveForward(Vehicle *vehicle,float x){
+	printf("DronAction: MoveForward %f\n",x);
 	moveByPositionOffset(vehicle, x, 0, 0, 0);
 }
 void MoveBack(Vehicle *vehicle,float x){
+	printf("DronAction: MoveBack %f\n,position.x");
 	moveByPositionOffset(vehicle, -x, 0, 0, 0);
 }
 void MoveUp(Vehicle *vehicle,float z){
-	moveByPositionOffset(vehicle, 0, 0, -z, 0);
+	printf("DronAction: MoveUp %f\n",z);
+//	moveByPositionOffset(vehicle, 0, 0, -z, 0);
 }
 void MoveDown(Vehicle *vehicle,float z){
+	printf("DronAction: MoveDown %f\n",z);
 	moveByPositionOffset(vehicle, 0, 0, z, 0);
 }
 void MoveLeft(Vehicle *vehicle,float y){
+	printf("DronAction: MoveLeft %f\n",y);
 	moveByPositionOffset(vehicle, 0, -y, 0, 0);
 }
 void MoveRight(Vehicle *vehicle,float y){
+	printf("DronAction: MoveRight %f\n",y);
 	moveByPositionOffset(vehicle, 0, y, 0, 0);
 }
 void TurnLeft(Vehicle *vehicle,float yew){
+	printf("DronAction: TurnLeft %f\n",yew);
 	moveByPositionOffset(vehicle, 0, 0, 0, -yew);
 }
 void TurnRight(Vehicle *vehicle,float yew){
+	printf("DronAction: TurnRight %f\n",yew);
 	moveByPositionOffset(vehicle, 0, 0, 0, yew);
 }
-
+#endif
 typedef void (*ACTION)(Vehicle *,float);
 
 typedef struct{
@@ -97,7 +170,7 @@ CMD_MATCH cmd[] = {
 void DronAction(Vehicle *vehicle, const char* cmds, float x){
 	int i = 0;
 	for(i = 0; i<10 ; i++){
-		if(strstr(cmd[i].cmd, cmds)){
+		if(strstr( cmds,cmd[i].cmd)){
 			cmd[i].act(vehicle, x);
 		}
 	}
@@ -129,7 +202,7 @@ int receiveCmd(Vehicle *vehicle)
         return 1;
     }
     sin_size=sizeof(struct sockaddr_in);
-    printf("waiting for a packet...\n");
+    printf("waiting for command...\n");
 
     while(1){
 		/*接收客户端的数据并将其发送给客户端--recvfrom是无连接的*/
@@ -138,19 +211,23 @@ int receiveCmd(Vehicle *vehicle)
 			perror("recvfrom");
 			return 1;
 		}
-		printf("received packet from %s:\n",inet_ntoa(remote_addr.sin_addr));
+		printf("received cmd from %s:\n",inet_ntoa(remote_addr.sin_addr));
 		buf[len]='\0';
-		printf("contents: %s\n",buf);
-		DronAction(vehicle, buf, 6);
+		printf("cmd: %s\n",buf);
+		char *blank = strstr(buf," ");
+		float offset = 0;
+		if(blank != NULL){
+			blank ++;
+			offset = atof(blank);
+		}else{
+			continue;
+		}
+		DronAction(vehicle, buf, offset);
     }
-
-    // if(buf == ""){
-    //    cmd process
-	// }
     return 0;
 }
 
-
+}
 /*! main
  *
  */
@@ -165,45 +242,12 @@ main(int argc, char** argv)
   if (vehicle == NULL)
   {
     std::cout << "Vehicle not initialized, exiting.\n";
-    return -1;
+//    return -1;
   }
-
   // Obtain Control Authority
-  vehicle->obtainCtrlAuthority(functionTimeout);
+//  vehicle->obtainCtrlAuthority(functionTimeout);
 
   receiveCmd(vehicle);
-  printf("recving......\n");
-
-//  // Display interactive prompt
-//  std::cout
-//    << "| Available commands:                                            |"
-//    << std::endl;
-//  std::cout
-//    << "| [a] Monitored Takeoff + Landing                                |"
-//    << std::endl;
-//  std::cout
-//    << "| [b] Monitored Takeoff + Position Control + Landing             |"
-//    << std::endl;
-//  char inputChar;
-//  std::cin >> inputChar;
-//
-//
-//  switch (inputChar)
-//  {
-//    case 'a':
-//      monitoredTakeoff(vehicle);
-//      monitoredLanding(vehicle);
-//      break;
-//    case 'b':
-//      monitoredTakeoff(vehicle);
-//      moveByPositionOffset(vehicle, 0, 6, 6, 30);
-//      moveByPositionOffset(vehicle, 6, 0, -3, -30);
-//      moveByPositionOffset(vehicle, -6, -6, 0, 0);
-//      monitoredLanding(vehicle);
-//      break;
-//    default:
-//      break;
-//  }
 
   return 0;
 }
